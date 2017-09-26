@@ -1,0 +1,235 @@
+#!/bin/bash
+
+
+WAF="modsecurity"
+SCRIPT_DIR=$(pwd)
+SRC_DIR="src/"
+PREFIX="/opt/nginx"
+RUN_DIR="/opt/run"
+NUM_CPU=$(cat /proc/cpuinfo | grep processor | wc -l)
+ULIMIT=$(ulimit -n)
+ROOT_DIR=$(pwd)
+# Read configuration variable file if it is present and override defaults
+[ -r ./CONFIG ] && . ./CONFIG
+
+
+function _install_memcached {
+   cd $ROOT_DIR
+   MEMCACHED_VERSION=`wget -qO- --no-check-certificate https://github.com/memcached/memcached/releases | sed -n 's|.*/archive/\(.*\).tar.gz.*|\1|p' | awk '{ print $1; exit }'`
+   echo "Getting latest memcached version: $MEMCACHED_VERSION"
+   curl -s -L https://github.com/memcached/memcached/archive/${MEMCACHED_VERSION}.tar.gz > ${SRC_DIR}memcached-${MEMCACHED_VERSION}.tar.gz
+   cd src/
+   tar -zxf memcached-${MEMCACHED_VERSION}.tar.gz
+   cd memcached-${MEMCACHED_VERSION}
+   ./autogen.sh
+   ./configure --prefix=/opt/memcached
+   make -s && make install
+   #make && make test && make install
+   cd $ROOT_DIR
+}
+
+mkdir -p ${SRC_DIR}
+echo "Cleaning $SRC_DIR"
+rm -rf ${SRC_DIR}*
+
+# Determine the latest stable version's download URL, assumed to be
+# the first `/download/nginx-*.tar.gz`-like link following the header
+# "Stable version".
+latestVer=$(curl -s 'http://nginx.org/en/download.html' |
+   sed 's/</\'$'\n''</g' | sed -n '/>Stable version$/,$ p' |
+   egrep -m1 -o '/download/nginx-.+\.tar\.gz')
+
+NGINX_VERSION=$(echo $latestVer | sed -n 's|.*nginx-\(.*\).tar.gz.*|\1|p' | awk '{ print $1; exit }')
+
+echo "Downloading Libraries"
+
+## Download latest zlib Library
+ZLIB_VERSION=`wget -qO- --no-check-certificate https://github.com/madler/zlib/releases | sed -n 's|.*/archive/v\(.*\).tar.gz.*|\1|p' | awk '{ print $1; exit }'`
+echo "Getting latest zlib Library version: $ZLIB_VERSION"
+curl -s -L https://github.com/madler/zlib/archive/v${ZLIB_VERSION}.tar.gz > ${SRC_DIR}zlib-${ZLIB_VERSION}.tar.gz
+
+## Download the latest OpenSSL Libraries
+OPENSSL_VERSION=`wget -qO- --no-check-certificate https://github.com/openssl/openssl/releases | sed -n 's|.*/archive/OpenSSL_\(1_0.*\).tar.gz.*|\1|p' | awk '{ print $1; exit }'`
+echo "Getting latest OpenSSL Libraries: $OPENSSL_VERSION"
+curl -s -L  https://github.com/openssl/openssl/archive/OpenSSL_${OPENSSL_VERSION}.tar.gz > ${SRC_DIR}openssl-${OPENSSL_VERSION}.tar.gz
+
+## Download the latest PCRE Library
+PCRE_VERSION=`wget -qO- --no-check-certificate https://ftp.pcre.org/pub/pcre/ | sed -n 's|.*pcre-\(8.*\).tar.gz.*|\1|p' | tail -1 | awk '{ print $1; exit }'`
+echo "Getting latest PCRE Library: $PCRE_VERSION"
+curl -s -L  https://ftp.pcre.org/pub/pcre/pcre-$PCRE_VERSION.tar.gz > ${SRC_DIR}pcre-$PCRE_VERSION.tar.gz
+
+# Download.
+echo "Getting latest Nginx Core version: $NGINX_VERSION"
+curl -s "http://nginx.org${latestVer}" > ${SRC_DIR}nginx-${NGINX_VERSION}.tar.gz
+
+
+
+echo "Downloading external modules"
+
+## Download latest PageSpeed module source
+PAGESPEED_VERSION=`wget -qO- --no-check-certificate https://github.com/pagespeed/ngx_pagespeed/releases | sed -n 's|.*/archive/v\(.*\).tar.gz.*|\1|p' | awk '{ print $1; exit }'`
+echo "Getting latest PageSpeed module version: $PAGESPEED_VERSION"
+curl -s -L https://github.com/pagespeed/ngx_pagespeed/archive/v${PAGESPEED_VERSION}.tar.gz > ${SRC_DIR}v${PAGESPEED_VERSION}.tar.gz
+
+## Download the latest NAXSI WAF module source
+NAXSI_VERSION=`wget -qO- --no-check-certificate https://github.com/nbs-system/naxsi/releases | sed -n 's|.*/archive/\(.*\).tar.gz.*|\1|p' | awk '{ print $1; exit }'`
+echo "Getting latest NAXSI WAF module version: $NAXSI_VERSION"
+curl -s -L https://github.com/nbs-system/naxsi/archive/${NAXSI_VERSION}.tar.gz > ${SRC_DIR}naxsi-${NAXSI_VERSION}.tar.gz
+
+## Download the latest modsecurity
+MODSEC_VERSION=`wget -qO- --no-check-certificate https://github.com/SpiderLabs/ModSecurity/releases | sed -n 's|.*/download/v.*/modsecurity-\(.*\).tar.gz.*|\1|p' | awk '{ print $1; exit }'`
+echo "Getting latest ModSecurity: $MODSEC_VERSION"
+curl -s -L https://github.com/SpiderLabs/ModSecurity/releases/download/v${MODSEC_VERSION}/modsecurity-${MODSEC_VERSION}.tar.gz > ${SRC_DIR}modsecurity-${MODSEC_VERSION}.tar.gz
+
+## Download the clone of ngx_http_enhanced_memcached_module
+git clone git://github.com/bpaquet/ngx_http_enhanced_memcached_module.git src/memcached_module
+
+
+echo "Uncompressing modules"
+cd ${SRC_DIR}
+tar -zxf naxsi-${NAXSI_VERSION}.tar.gz
+tar -zxf modsecurity-${MODSEC_VERSION}.tar.gz
+tar -zxf v${PAGESPEED_VERSION}.tar.gz
+tar -zxf zlib-${ZLIB_VERSION}.tar.gz 
+tar -zxf pcre-${PCRE_VERSION}.tar.gz
+mkdir openssl-${OPENSSL_VERSION} && tar -zxf openssl-${OPENSSL_VERSION}.tar.gz -C openssl-${OPENSSL_VERSION} --strip-components=1
+echo "Uncompressing Nginx Core"
+tar -zxf nginx-${NGINX_VERSION}.tar.gz
+echo "Compiling Memcached"
+_install_memcached
+echo "Compiling Nginx"
+cd src/
+cd nginx-${NGINX_VERSION}
+if [ "$NO_WAF" == "true" ]; then
+  echo "Generando nginx sin WAF"
+  ./configure --prefix=${PREFIX} --add-module=../memcached_module --with-openssl=../openssl-${OPENSSL_VERSION} --with-http_ssl_module --without-mail_pop3_module --without-mail_imap_module --without-mail_smtp_module --without-http_uwsgi_module --without-http_scgi_module --with-http_sub_module --with-pcre=../pcre-$PCRE_VERSION --with-zlib=../zlib-${ZLIB_VERSION}
+else
+  if [ "$WAF" == "modsecurity" ]; then
+     WAF_STR="../modsecurity-${MODSEC_VERSION}/nginx/modsecurity"
+     cd modsecurity-${MODSEC_VERSION}
+     ./autogen.sh
+     ./configure --enable-standalone-module
+     mak -se
+     cd ..
+  else
+     WAF_STR="../naxsi-${NAXSI_VERSION}/naxsi_src"
+  fi
+  ./configure --prefix=${PREFIX} --add-module=${WAF_STR} --add-module=../memcached_module --with-openssl=../openssl-${OPENSSL_VERSION} --with-http_ssl_module --without-mail_pop3_module --without-mail_imap_module --without-mail_smtp_module --without-http_uwsgi_module --without-http_scgi_module --with-http_sub_module --with-pcre=../pcre-$PCRE_VERSION
+fi
+
+make -s && make install
+
+echo "Generando archivos de configuración"
+mkdir -p ${RUN_DIR}
+mkdir -p /opt/{ssl,www}
+mkdir -p ${PREFIX}/{conf.d,sites-enabled,sites-available,snippets}
+cat > ${PREFIX}/conf/nginx.conf << EOF
+user www-data;
+worker_processes ${NUM_CPU};
+pid ${RUN_DIR}/nginx.pid;
+
+events {
+  worker_connections ${ULIMIT};
+  multi_accept on;
+  use epoll;
+}
+
+http {
+  keepalive_timeout 15;
+  client_body_timeout 12;
+  client_header_timeout 12;
+  send_timeout 10;
+  server_tokens off;
+
+  sendfile         off; #https://wiki.alpinelinux.org/wiki/Nginx_as_reverse_proxy_with_acme_(letsencrypt)
+  tcp_nopush       on;
+  tcp_nodelay      on;
+
+  client_body_buffer_size    128k;
+  client_max_body_size       10m;
+  client_header_buffer_size    1k;
+  large_client_header_buffers  4 4k;
+
+  include ${PREFIX}/conf/mime.types;
+  default_type application/octet-stream;
+  # buffering causes issues
+  proxy_buffering off; #https://wiki.alpinelinux.org/wiki/Nginx_as_reverse_proxy_with_acme_(letsencrypt)
+
+  # Headers adicionales
+  add_header X-Frame-Options DENY;
+  add_header X-Content-Type-Options nosniff;
+  add_header X-XSS-Protection "1; mode=block";
+  add_header X-Provider "Synaptic MX";
+  # Unicamente por sitio
+  #add_header Strict-Transport-Security "max-age=63072000; includeSubdomains";
+  include ${PREFIX}/snippets/ssl.conf;
+  include ${PREFIX}/conf.d/*.conf;
+  include ${PREFIX}/sites-enabled/*;
+}
+EOF
+echo "Generating default SSL files"
+openssl dhparam -out /opt/ssl/dhparam.pem 4096
+cat >${PREFIX}/snippets/ssl.conf << EOF
+ssl_prefer_server_ciphers on;
+ssl_ecdh_curve secp384r1;
+ssl_session_cache shared:SSL:10m;
+ssl_session_tickets off;
+ssl_stapling on;
+ssl_stapling_verify on;
+resolver 8.8.8.8 8.8.4.4 valid=300s;
+resolver_timeout 3s;
+ssl_ciphers 'EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH';
+ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+ssl_dhparam /opt/ssl/dhparam.pem;
+EOF
+
+cat >${PREFIX}/snippets/proxy_headers.conf << EOF
+proxy_set_header    X-Forwarded-By       \$server_addr:\$server_port;
+proxy_set_header    X-Forwarded-For      \$remote_addr;
+proxy_set_header    X-Forwarded-Proto    \$scheme;
+proxy_set_header    Host                 \$host;
+EOF
+
+cat >${PREFIX}/snippets/php-fpm.conf << EOF
+try_files \$uri /index.php =404;
+fastcgi_split_path_info ^(.+\.php)(/.+)$;
+#Per Site
+#fastcgi_pass unix:/var/run/php/php5.6-fpm.sock;
+fastcgi_index index.php;
+fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+include fastcgi_params;
+EOF
+cat >${PREFIX}/snippets/errors_pages.conf <<EOF
+    error_page 500 502 503 504 /500.html;
+    location = /500.html {
+        root ${PREFIX}/html/;
+    }
+    location = /403.html {
+        root ${PREFIX}/html/;
+    }
+EOF
+echo "Printing PHP Socks"
+cat /proc/net/unix | grep php | awk '{print $8}'
+echo "Default Site"
+cat >${PREFIX}/sites-available/default << EOF
+server {
+  # listen IP:PORT <ssl>;
+  #listen 443 ssl;
+  listen 80;
+  server_name _;
+  
+  access_log ${PREFIX}/log/access.log;
+  error_log ${PREFIX}/log/error.log;
+
+  root /opt/www;
+  index index.html index.php;
+
+  location / {
+    include ${PREFIX}/snippets/proxy_headers.conf;
+    proxy_pass http://172.30.20.3:80;
+  }
+}
+EOF
+
+mkdir -p /opt/www
+cp ${PREFIX}/html/index.html /opt/www/
