@@ -1,0 +1,75 @@
+#!/bin/bash
+
+
+APPDIR=$(pwd)
+WORKDIR=/opt
+SOURCES=/opt/sources
+VER=$1
+
+if [ $# -ne 1 ];
+then 
+ exit 2
+fi
+
+VERE=$(echo $VER | sed 's/\([.]\)/\\\./g')
+APACHE=${VER}.`wget -qO- --no-check-certificate https://github.com/apache/httpd/releases | sed -n "s|.*/archive/${VERE}\.\(.*\).tar.gz.*|\1|p" | awk '{ print $1; exit }'`
+APR=`wget -qO- --no-check-certificate https://github.com/apache/apr/releases | sed -n 's|.*/archive/\(.*\).tar.gz.*|\1|p' | awk '{ print $1; exit }'`
+APRUTIL=`wget -qO- --no-check-certificate https://github.com/apache/apr-util/releases | sed -n 's|.*/archive/\(.*\).tar.gz.*|\1|p' | awk '{ print $1; exit }'`
+
+
+
+
+_download_apache() {
+  cd ${SOURCES}
+  if [ ! -f ${APACHE}.tar.gz ]; then
+    curl -O -L https://github.com/apache/httpd/archive/${APACHE}.tar.gz
+  fi
+  if [ ! -f ${APR}.tar.gz ]; then
+    curl -O -L https://github.com/apache/apr/archive/${APR}.tar.gz
+  fi
+  if [ ! -f ${APRUTIL}.tar.gz ]; then
+    curl -O -L https://github.com/apache/apr-util/archive/${APRUTIL}.tar.gz
+  fi
+  tar -xf ${APACHE}.tar.gz
+  tar -xf ${APR}.tar.gz
+  tar -xf ${APRUTIL}.tar.gz
+  cp -r apr-${APR} httpd-${APACHE}/srclib/apr
+  cp -r apr-util-${APRUTIL} httpd-${APACHE}/srclib/apr-util
+}
+
+_compile_apache() {
+  cd ${SOURCES}/httpd-${APACHE}
+  make clean
+  ./buildconf
+  ./configure --enable-ssl --enable-so --with-mpm=event --with-included-apr --prefix=/opt/httpd-${VER}
+  make && make install
+}
+_set_config(){
+    # $1 = Var $2 = Value $3 File
+    sed -i "s/^\($1\s*\).*\$/\1$2/" $3
+}
+
+_configure_apache() {
+  cd ${WORKDIR}/httpd-${VER}/conf/
+  _set_config User www-data httpd.conf
+  _set_config Group www-data httpd.conf
+  _set_config Listen 8080 httpd.conf
+  _set_config ServerAdmin admin@synaptic.mx httpd.conf
+  _set_config ServerTokens OS extra/httpd-default.conf
+  if grep -Fxq "httpd-php.conf" httpd.conf
+  then
+     echo "FOUND httpd-php.conf"
+  else
+     echo "Include conf/extra/httpd-php.conf" >> httpd.conf
+     if [ ! -f extra/httpd-php.conf ];
+     then
+        touch extra/httpd-php.conf
+     fi
+  fi
+  #cp ${APPDIR}/httpd-php${VER:0:1}.conf extra/httpd-php.conf
+  #sed -i.bak "s/User daemon/User www-data/g" httpd.conf
+  #sed -i.bak "s/Group daemon/Group www-data/g" httpd.conf
+}
+_download_apache
+_compile_apache
+_configure_apache 
