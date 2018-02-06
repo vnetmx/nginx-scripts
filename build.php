@@ -1,4 +1,6 @@
 #!/bin/bash
+# Si un comando falla salir
+set -e
 
 APPDIR=$(pwd)
 WORKDIR=/opt
