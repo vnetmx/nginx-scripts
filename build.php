@@ -61,8 +61,8 @@ _build_php()
  then
    configure="$configure --with-apxs2=/opt/httpd-$MODPHP/bin/apxs"
  fi
- $configure
- make clean && make && make install
+ $configure > /dev/null
+ make -s clean && make -s && make -s install
  cp php.ini-development /opt/php-$1/lib/php.ini
  echo "[global]" > /opt/php-$1/etc/php-fpm.conf
  echo "pid = run/php-fpm.pid" >> /opt/php-$1/etc/php-fpm.conf
@@ -104,8 +104,8 @@ _git_ext() {
  git clone https://github.com/mkoppanen/imagick.git ${SOURCES}/imagick
  cd ${SOURCES}/imagick
  git reset --hard
- make clean
- /opt/php-$1/bin/phpize && ./configure --with-php-config=/opt/php-$1/bin/php-config && make && make install && echo "extension=imagick.so" >> /opt/php-$1/lib/php.ini
+ make -s clean
+ /opt/php-$1/bin/phpize && ./configure --with-php-config=/opt/php-$1/bin/php-config && make -s && make -s install && echo "extension=imagick.so" >> /opt/php-$1/lib/php.ini
 }
 
 
@@ -114,7 +114,7 @@ _git_php
 set +e
 if [ -x /etc/init.d/php-${VER} ];
 then
-  /etc/init.d/php-${VER} stop
+  /etc/init.d/php-${VER} stop > /dev/null 2>&1
 fi
 set -e
 _build_php ${VER}
