@@ -1,0 +1,19 @@
+#!/bin/bash
+
+PREFIX="/opt"
+SRC_DIR=${PREFIX}"/sources"
+
+function _install_memcached {
+   MEMCACHED_VERSION=`wget -qO- --no-check-certificate https://github.com/memcached/memcached/releases | sed -n 's|.*/archive/\(.*\).tar.gz.*|\1|p' | awk '{ print $1; exit }'`
+   echo "Getting latest memcached version: $MEMCACHED_VERSION"
+   curl -s -L https://github.com/memcached/memcached/archive/${MEMCACHED_VERSION}.tar.gz > ${SRC_DIR}/memcached-${MEMCACHED_VERSION}.tar.gz
+   cd ${SRC_DIR}
+   tar -zxf memcached-${MEMCACHED_VERSION}.tar.gz
+   cd memcached-${MEMCACHED_VERSION}
+   ./autogen.sh
+   ./configure --prefix=${PREFIX}/memcached
+   #make -s && make install
+   make && make test && make install
+}
+
+_install_memcached

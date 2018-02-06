@@ -1,36 +1,18 @@
 #!/bin/bash
 
 
-WAF="modsecurity"
-SCRIPT_DIR=$(pwd)
-SRC_DIR="src/"
-PREFIX="/opt/nginx"
-RUN_DIR="/opt/run"
+APPDIR=$(pwd)
+PREFIX="/opt"
+SRC=${PREFIX}"/sources"
 NUM_CPU=$(cat /proc/cpuinfo | grep processor | wc -l)
 ULIMIT=$(ulimit -n)
-ROOT_DIR=$(pwd)
 # Read configuration variable file if it is present and override defaults
 [ -r ./CONFIG ] && . ./CONFIG
 
 
-function _install_memcached {
-   cd $ROOT_DIR
-   MEMCACHED_VERSION=`wget -qO- --no-check-certificate https://github.com/memcached/memcached/releases | sed -n 's|.*/archive/\(.*\).tar.gz.*|\1|p' | awk '{ print $1; exit }'`
-   echo "Getting latest memcached version: $MEMCACHED_VERSION"
-   curl -s -L https://github.com/memcached/memcached/archive/${MEMCACHED_VERSION}.tar.gz > ${SRC_DIR}memcached-${MEMCACHED_VERSION}.tar.gz
-   cd src/
-   tar -zxf memcached-${MEMCACHED_VERSION}.tar.gz
-   cd memcached-${MEMCACHED_VERSION}
-   ./autogen.sh
-   ./configure --prefix=/opt/memcached
-   make -s && make install
-   #make && make test && make install
-   cd $ROOT_DIR
-}
-
-mkdir -p ${SRC_DIR}
-echo "Cleaning $SRC_DIR"
-rm -rf ${SRC_DIR}*
+mkdir -p ${SRC}
+#echo "Cleaning $SRC_DIR"
+#rm -rf ${SRC}/nginx*
 
 # Determine the latest stable version's download URL, assumed to be
 # the first `/download/nginx-*.tar.gz`-like link following the header
@@ -43,82 +25,114 @@ NGINX_VERSION=$(echo $latestVer | sed -n 's|.*nginx-\(.*\).tar.gz.*|\1|p' | awk 
 
 echo "Downloading Libraries"
 
+
 ## Download latest zlib Library
 ZLIB_VERSION=`wget -qO- --no-check-certificate https://github.com/madler/zlib/releases | sed -n 's|.*/archive/v\(.*\).tar.gz.*|\1|p' | awk '{ print $1; exit }'`
-echo "Getting latest zlib Library version: $ZLIB_VERSION"
-curl -s -L https://github.com/madler/zlib/archive/v${ZLIB_VERSION}.tar.gz > ${SRC_DIR}zlib-${ZLIB_VERSION}.tar.gz
-
+if [ ! -f ${SRC}/zlib-${ZLIB_VERSION}.tar.gz ];
+then
+  echo "Getting latest zlib Library version: $ZLIB_VERSION"
+  curl -s -L https://github.com/madler/zlib/archive/v${ZLIB_VERSION}.tar.gz > ${SRC}/zlib-${ZLIB_VERSION}.tar.gz
+fi
 ## Download the latest OpenSSL Libraries
 OPENSSL_VERSION=`wget -qO- --no-check-certificate https://github.com/openssl/openssl/releases | sed -n 's|.*/archive/OpenSSL_\(1_0.*\).tar.gz.*|\1|p' | awk '{ print $1; exit }'`
-echo "Getting latest OpenSSL Libraries: $OPENSSL_VERSION"
-curl -s -L  https://github.com/openssl/openssl/archive/OpenSSL_${OPENSSL_VERSION}.tar.gz > ${SRC_DIR}openssl-${OPENSSL_VERSION}.tar.gz
-
+if [ ! -f ${SRC}/openssl-${OPENSSL_VERSION}.tar.gz ]; 
+then
+  echo "Getting latest OpenSSL Libraries: $OPENSSL_VERSION"
+  curl -s -L  https://github.com/openssl/openssl/archive/OpenSSL_${OPENSSL_VERSION}.tar.gz > ${SRC}/openssl-${OPENSSL_VERSION}.tar.gz
+fi
 ## Download the latest PCRE Library
 PCRE_VERSION=`wget -qO- --no-check-certificate https://ftp.pcre.org/pub/pcre/ | sed -n 's|.*pcre-\(8.*\).tar.gz.*|\1|p' | tail -1 | awk '{ print $1; exit }'`
-echo "Getting latest PCRE Library: $PCRE_VERSION"
-curl -s -L  https://ftp.pcre.org/pub/pcre/pcre-$PCRE_VERSION.tar.gz > ${SRC_DIR}pcre-$PCRE_VERSION.tar.gz
+if [ ! -f ${SRC}/pcre-$PCRE_VERSION.tar.gz ];
+then
+  echo "Getting latest PCRE Library: $PCRE_VERSION"
+  curl -s -L  https://ftp.pcre.org/pub/pcre/pcre-$PCRE_VERSION.tar.gz > ${SRC}/pcre-$PCRE_VERSION.tar.gz
+fi
 
 # Download.
-echo "Getting latest Nginx Core version: $NGINX_VERSION"
-curl -s "http://nginx.org${latestVer}" > ${SRC_DIR}nginx-${NGINX_VERSION}.tar.gz
-
-
+if [ ! -f ${SRC}/nginx-${NGINX_VERSION}.tar.gz ];
+then
+  echo "Getting latest Nginx Core version: $NGINX_VERSION"
+  curl -s "http://nginx.org${latestVer}" > ${SRC}/nginx-${NGINX_VERSION}.tar.gz
+fi
 
 echo "Downloading external modules"
 
 ## Download latest PageSpeed module source
 PAGESPEED_VERSION=`wget -qO- --no-check-certificate https://github.com/pagespeed/ngx_pagespeed/releases | sed -n 's|.*/archive/v\(.*\).tar.gz.*|\1|p' | awk '{ print $1; exit }'`
-echo "Getting latest PageSpeed module version: $PAGESPEED_VERSION"
-curl -s -L https://github.com/pagespeed/ngx_pagespeed/archive/v${PAGESPEED_VERSION}.tar.gz > ${SRC_DIR}v${PAGESPEED_VERSION}.tar.gz
-
+if [ ! -f ${SRC}/v${PAGESPEED_VERSION}.tar.gz ];
+then
+  echo "Getting latest PageSpeed module version: $PAGESPEED_VERSION"
+  curl -s -L https://github.com/pagespeed/ngx_pagespeed/archive/v${PAGESPEED_VERSION}.tar.gz > ${SRC}/v${PAGESPEED_VERSION}.tar.gz
+fi
 ## Download the latest NAXSI WAF module source
-NAXSI_VERSION=`wget -qO- --no-check-certificate https://github.com/nbs-system/naxsi/releases | sed -n 's|.*/archive/\(.*\).tar.gz.*|\1|p' | awk '{ print $1; exit }'`
-echo "Getting latest NAXSI WAF module version: $NAXSI_VERSION"
-curl -s -L https://github.com/nbs-system/naxsi/archive/${NAXSI_VERSION}.tar.gz > ${SRC_DIR}naxsi-${NAXSI_VERSION}.tar.gz
+#NAXSI_VERSION=`wget -qO- --no-check-certificate https://github.com/nbs-system/naxsi/releases | sed -n 's|.*/archive/\(.*\).tar.gz.*|\1|p' | awk '{ print $1; exit }'`
+#echo "Getting latest NAXSI WAF module version: $NAXSI_VERSION"
+#curl -s -L https://github.com/nbs-system/naxsi/archive/${NAXSI_VERSION}.tar.gz > ${SRC_DIR}naxsi-${NAXSI_VERSION}.tar.gz
 
 ## Download the latest modsecurity
-MODSEC_VERSION=`wget -qO- --no-check-certificate https://github.com/SpiderLabs/ModSecurity/releases | sed -n 's|.*/download/v.*/modsecurity-\(.*\).tar.gz.*|\1|p' | awk '{ print $1; exit }'`
-echo "Getting latest ModSecurity: $MODSEC_VERSION"
-curl -s -L https://github.com/SpiderLabs/ModSecurity/releases/download/v${MODSEC_VERSION}/modsecurity-${MODSEC_VERSION}.tar.gz > ${SRC_DIR}modsecurity-${MODSEC_VERSION}.tar.gz
+#MODSEC_VERSION=`wget -qO- --no-check-certificate https://github.com/SpiderLabs/ModSecurity/releases | sed -n 's|.*/download/v.*/modsecurity-\(.*\).tar.gz.*|\1|p' | awk '{ print $1; exit }'`
+#echo "Getting latest ModSecurity: $MODSEC_VERSION"
+#curl -s -L https://github.com/SpiderLabs/ModSecurity/releases/download/v${MODSEC_VERSION}/modsecurity-${MODSEC_VERSION}.tar.gz > ${SRC}/modsecurity-${MODSEC_VERSION}.tar.gz
 
 ## Download the clone of ngx_http_enhanced_memcached_module
-git clone git://github.com/bpaquet/ngx_http_enhanced_memcached_module.git src/memcached_module
+[ -d ${SRC}/memcached_module ] && rm -rf ${SRC}/memcached_module
+git clone git://github.com/bpaquet/ngx_http_enhanced_memcached_module.git ${SRC}/memcached_module
+[ -d ${SRC}/naxsi ] && rm -rf ${SRC}/naxsi
+git clone https://github.com/nbs-system/naxsi.git ${SRC}/naxsi
+# ModSecurity v3
+#[ -d ${SRC}/modsecurity ] && rm -rf ${SRC}/modsecurity
+#git clone --depth 1 -b v3/master --single-branch https://github.com/SpiderLabs/ModSecurity ${SRC}/modsecurity
+#cd ${SRC}/modsecurity
+#git submodule init 
+#git submodule update
+#./build.sh
+#./configure --prefix=${PREFIX}/modsecurity
+#make && make install
+#[ $? -ne 0 ] && exit 10
+
+[ -d ${SRC}/modsecurity-nginx ] && rm -rf ${SRC}/modsecurity-nginx
+git clone --depth 1 https://github.com/SpiderLabs/ModSecurity-nginx.git ${SRC}/modsecurity-nginx
+# END ModSec 
 
 
 echo "Uncompressing modules"
-cd ${SRC_DIR}
-tar -zxf naxsi-${NAXSI_VERSION}.tar.gz
-tar -zxf modsecurity-${MODSEC_VERSION}.tar.gz
+cd ${SRC}
 tar -zxf v${PAGESPEED_VERSION}.tar.gz
 tar -zxf zlib-${ZLIB_VERSION}.tar.gz 
 tar -zxf pcre-${PCRE_VERSION}.tar.gz
 mkdir openssl-${OPENSSL_VERSION} && tar -zxf openssl-${OPENSSL_VERSION}.tar.gz -C openssl-${OPENSSL_VERSION} --strip-components=1
 echo "Uncompressing Nginx Core"
+[ -d nginx-${NGINX_VERSION} ] && rm -rf nginx-${NGINX_VERSION}
 tar -zxf nginx-${NGINX_VERSION}.tar.gz
-echo "Compiling Memcached"
-_install_memcached
 echo "Compiling Nginx"
-cd src/
+cd ${SRC}
 cd nginx-${NGINX_VERSION}
-if [ "$NO_WAF" == "true" ]; then
-  echo "Generando nginx sin WAF"
-  ./configure --prefix=${PREFIX} --add-module=../memcached_module --with-openssl=../openssl-${OPENSSL_VERSION} --with-http_ssl_module --without-mail_pop3_module --without-mail_imap_module --without-mail_smtp_module --without-http_uwsgi_module --without-http_scgi_module --with-http_sub_module --with-pcre=../pcre-$PCRE_VERSION --with-zlib=../zlib-${ZLIB_VERSION}
-else
-  if [ "$WAF" == "modsecurity" ]; then
-     WAF_STR="../modsecurity-${MODSEC_VERSION}/nginx/modsecurity"
-     cd modsecurity-${MODSEC_VERSION}
-     ./autogen.sh
-     ./configure --enable-standalone-module
-     mak -se
-     cd ..
-  else
-     WAF_STR="../naxsi-${NAXSI_VERSION}/naxsi_src"
-  fi
-  ./configure --prefix=${PREFIX} --add-module=${WAF_STR} --add-module=../memcached_module --with-openssl=../openssl-${OPENSSL_VERSION} --with-http_ssl_module --without-mail_pop3_module --without-mail_imap_module --without-mail_smtp_module --without-http_uwsgi_module --without-http_scgi_module --with-http_sub_module --with-pcre=../pcre-$PCRE_VERSION
-fi
+export MODSECURITY_INC="/opt/modsecurity/include/"
+export MODSECURITY_LIB="/opt/modsecurity/lib"
+./configure \
+	--prefix=${PREFIX}/nginx \
+	--with-openssl=../openssl-${OPENSSL_VERSION} \
+	--with-http_ssl_module \
+	--without-mail_pop3_module \
+	--without-mail_imap_module \
+	--without-mail_smtp_module \
+	--without-http_uwsgi_module \
+	--without-http_scgi_module \
+	--with-http_sub_module \
+	--with-pcre=../pcre-$PCRE_VERSION \
+	--with-zlib=../zlib-${ZLIB_VERSION} \
+	--with-stream \
+	--modules-path=${PREFIX}/nginx/modules \
+	--add-module=${SRC}/memcached_module \
+	--with-compat \
+	--add-dynamic-module=${SRC}/modsecurity-nginx \
+	--add-dynamic-module=${SRC}/naxsi/naxsi_src
+make -s && make -s modules && make -s install
+# Compilando modulos dinamicos
+#./configure --with-compat --add-dynamic-module=${SRC}/modsecurity-nginx --add-dynamic-module=${SRC}/naxsi/naxsi_src
+#make modules
 
-make -s && make install
-
+exit
 echo "Generando archivos de configuración"
 mkdir -p ${RUN_DIR}
 mkdir -p /opt/{ssl,www}
