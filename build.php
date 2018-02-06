@@ -1,6 +1,4 @@
 #!/bin/bash
-# Si un comando falla salir
-set -e
 
 APPDIR=$(pwd)
 WORKDIR=/opt
@@ -111,12 +109,14 @@ _git_ext() {
 }
 
 
-
+set -e
 _git_php
+set +e
 if [ -x /etc/init.d/php-${VER} ];
 then
   /etc/init.d/php-${VER} stop
 fi
+set -e
 _build_php ${VER}
 _git_ext ${VER}
 /etc/init.d/php-${VER} start
