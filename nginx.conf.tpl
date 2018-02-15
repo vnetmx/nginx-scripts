@@ -40,7 +40,8 @@ http {
 	keepalive_requests 100000;
 
 	server_tokens off;
-	
+
+	include conf/fastcgi_cache.conf;	
 	include conf/custom/*.conf;
 	include conf/sites-enabled/*.site;
 }

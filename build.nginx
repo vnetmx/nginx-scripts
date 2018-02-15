@@ -9,6 +9,7 @@ PREFIX="/opt"
 SRC=${PREFIX}"/sources"
 NUM_CPU=$(cat /proc/cpuinfo | grep processor | wc -l)
 ULIMIT=$(ulimit -n)
+TMPFSPATH="/opt/cache"
 # Read configuration variable file if it is present and override defaults
 #[ -r ./CONFIG ] && . ./CONFIG
 
@@ -59,6 +60,10 @@ function _check_clean() {
 	   [ -d ${SRC}/$1 ] && rm -rf ${SRC}/$1
    fi
 } 
+
+function _create_tmpfs() {
+   echo "Creating tmpfs for fastcgi_cache"
+}
 
 PAGESPEED_VERSION=$(_get_pack apache incubator-pagespeed-ngx latest- pagespeed)
 ZLIB_VERSION=$(_get_pack madler zlib)
@@ -165,7 +170,14 @@ cp ${APPDIR}/mime.types.tpl ${PREFIX}/nginx/conf/mime.types
 cp ${APPDIR}/certbot.conf.tpl ${PREFIX}/nginx/conf/certbot.conf
 cp ${APPDIR}/ssl.conf.tpl ${PREFIX}/nginx/conf/ssl.conf
 cp ${APPDIR}/proxy_headers.conf.tpl ${PREFIX}/nginx/conf/proxy_headers.conf
-
+cp ${APPDIR}/fastcgi_cache.conf.tpl ${PREFIX}/nginx/conf/fastcgi_cache.conf
+cp ${APPDIR}/site.conf.tpl ${PREFIX}/nginx/sites-available/site.conf
+cp ${APPDIR}/site-cache.conf.tpl ${PREFIX}/nginx/conf/site-cache.conf
+cp ${APPDIR}/site-locations.conf.tpl ${PREFIX}/nginx/conf/site-locations.conf
+# CAche dir for FastCGI
+[ -d /dev/shm ] && TMPFSPATH="\/dev\/shm"
+[ ! -d ${TMPFSPATH} ] && _create_tmpfs
+sed -i "s/TMPFSPATH/${TMPFSPATH}/g" ${PREFIX}/nginx/conf/fastcgi_cache.conf
 
 
 exit

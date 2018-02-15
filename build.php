@@ -87,7 +87,11 @@ _build_php()
      cp ${APPDIR}/httpd-php${1:0:1}.conf /opt/httpd-$MODPHP/conf/extra/httpd-php.conf
    fi
  fi
-
+ if [ -d /opt/nginx ];
+ then
+   cp ${APPDIR}/php.conf.tpl /opt/nginx/conf/php.conf
+   sed -i s/127.0.0.1:9000/127.0.0.1:90${1//.}/g /opt/nginx/conf/php.conf
+ fi
 
 }
 
