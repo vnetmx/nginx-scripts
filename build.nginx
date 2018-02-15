@@ -77,7 +77,9 @@ function _get_pack() {
 function _check_clean() {
    if [ ! -z "${1}" ]; then
 	   [ -d ${SRC}/$1 ] && rm -rf ${SRC}/$1
+	   echo "Wiping old clientes"
    fi
+   echo "Done"
 } 
 
 function _create_tmpfs() {
