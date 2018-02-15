@@ -167,8 +167,8 @@ sed -i "s/Server\: nginx/Server\: Synaptic/g" src/http/ngx_http_header_filter_mo
 	#--without-http_uwsgi_module \
 	#--without-http_scgi_module \
 	#--with-http_sub_module \
-	--with-pcre=../pcre-$PCRE_VERSION \
-	--with-zlib=../zlib-${ZLIB_VERSION} \
+	--with-pcre=${SRC}/pcre-$PCRE_VERSION \
+	--with-zlib=${SRC}/zlib-${ZLIB_VERSION} \
 	--with-stream \
 	--modules-path=${PREFIX}/nginx/modules \
 	--with-compat \
