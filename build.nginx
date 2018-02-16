@@ -145,7 +145,7 @@ git submodule update
 ./configure --prefix=${PREFIX}/modsecurity
 make -s && make install
 _check_clean "modsecurity-nginx"
-git clone --quiet -depth 1 https://github.com/SpiderLabs/ModSecurity-nginx.git ${SRC}/modsecurity-nginx
+git clone --quiet --depth 1 https://github.com/SpiderLabs/ModSecurity-nginx.git ${SRC}/modsecurity-nginx
 # END ModSec 
 
 
