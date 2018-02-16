@@ -147,14 +147,14 @@ git clone --depth 1 https://github.com/SpiderLabs/ModSecurity-nginx.git ${SRC}/m
 
 echo "Uncompressing modules"
 cd ${SRC}
-mkdir pagespeed-${PAGESPEED_VERSION} && tar -zxf pagespeed-${PAGESPEED_VERSION}.tar.gz -C pagespeed-${PAGESPEED_VERSION} --strip-components=1
+mkdir -p pagespeed-${PAGESPEED_VERSION} && tar -zxf pagespeed-${PAGESPEED_VERSION}.tar.gz -C pagespeed-${PAGESPEED_VERSION} --strip-components=1
 cd pagespeed-${PAGESPEED_VERSION}
 [ ! -f 1.13.35.2-x64.tar.gz ] && wget https://dl.google.com/dl/page-speed/psol/1.13.35.2-x64.tar.gz
 tar -zxf 1.13.35.2-x64.tar.gz
 cd ${SRC}
 tar -zxf zlib-${ZLIB_VERSION}.tar.gz 
 tar -zxf pcre-${PCRE_VERSION}.tar.gz
-mkdir openssl-${OPENSSL_VERSION} && tar -zxf openssl-${OPENSSL_VERSION}.tar.gz -C openssl-${OPENSSL_VERSION} --strip-components=1
+mkdir -p openssl-${OPENSSL_VERSION} && tar -zxf openssl-${OPENSSL_VERSION}.tar.gz -C openssl-${OPENSSL_VERSION} --strip-components=1
 echo "Uncompressing Nginx Core"
 _check_clean "nginx-${NGINX_VERSION}"
 tar -zxf nginx-${NGINX_VERSION}.tar.gz
