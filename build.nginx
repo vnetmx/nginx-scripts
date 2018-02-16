@@ -133,7 +133,7 @@ echo "Downloading external modules"
 _check_clean "memcached_module"
 git clone --quiet git://github.com/bpaquet/ngx_http_enhanced_memcached_module.git ${SRC}/memcached_module
 _check_clean "naxsi"
-git -q clone https://github.com/nbs-system/naxsi.git ${SRC}/naxsi
+git clone --quiet https://github.com/nbs-system/naxsi.git ${SRC}/naxsi
 # ModSecurity v3
 echo "Compilando ModSecurity 3.0"
 _check_clean "modsecurity"
