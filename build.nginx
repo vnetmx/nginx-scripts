@@ -131,21 +131,21 @@ echo "Downloading external modules"
 ## Download the clone of ngx_http_enhanced_memcached_module
 #[ -d ${SRC}/memcached_module ] && rm -rf ${SRC}/memcached_module
 _check_clean "memcached_module"
-git clone git://github.com/bpaquet/ngx_http_enhanced_memcached_module.git ${SRC}/memcached_module
+git -q clone git://github.com/bpaquet/ngx_http_enhanced_memcached_module.git ${SRC}/memcached_module
 _check_clean "naxsi"
-git clone https://github.com/nbs-system/naxsi.git ${SRC}/naxsi
+git -q clone https://github.com/nbs-system/naxsi.git ${SRC}/naxsi
 # ModSecurity v3
 echo "Compilando ModSecurity 3.0"
 _check_clean "modsecurity"
-git clone --depth 1 -b v3/master --single-branch https://github.com/SpiderLabs/ModSecurity ${SRC}/modsecurity
+git -q clone --depth 1 -b v3/master --single-branch https://github.com/SpiderLabs/ModSecurity ${SRC}/modsecurity
 cd ${SRC}/modsecurity
 git submodule init 
 git submodule update
 ./build.sh
 ./configure --prefix=${PREFIX}/modsecurity
-make && make install
+make -s && make install
 _check_clean "modsecurity-nginx"
-git clone --depth 1 https://github.com/SpiderLabs/ModSecurity-nginx.git ${SRC}/modsecurity-nginx
+git -q clone --depth 1 https://github.com/SpiderLabs/ModSecurity-nginx.git ${SRC}/modsecurity-nginx
 # END ModSec 
 
 
@@ -153,7 +153,7 @@ echo "Uncompressing modules"
 cd ${SRC}
 mkdir -p pagespeed-${PAGESPEED_VERSION} && tar -zxf pagespeed-${PAGESPEED_VERSION}.tar.gz -C pagespeed-${PAGESPEED_VERSION} --strip-components=1
 cd pagespeed-${PAGESPEED_VERSION}
-[ ! -f 1.13.35.2-x64.tar.gz ] && wget https://dl.google.com/dl/page-speed/psol/1.13.35.2-x64.tar.gz
+[ ! -f 1.13.35.2-x64.tar.gz ] && wget -q https://dl.google.com/dl/page-speed/psol/1.13.35.2-x64.tar.gz
 tar -zxf 1.13.35.2-x64.tar.gz
 cd ${SRC}
 tar -zxf zlib-${ZLIB_VERSION}.tar.gz 
@@ -188,12 +188,14 @@ sed -i "s/Server\: nginx/Server\: Synaptic/g" src/http/ngx_http_header_filter_mo
 make -s && make -s modules && make -s install
 # Configuring ModSec
 mkdir -p ${PREFIX}/nginx/modsec
-wget https://raw.githubusercontent.com/SpiderLabs/ModSecurity/master/modsecurity.conf-recommended -O ${PREFIX}/nginx/modsec/modsecurity.conf
+wget -q https://raw.githubusercontent.com/SpiderLabs/ModSecurity/master/modsecurity.conf-recommended -O ${PREFIX}/nginx/modsec/modsecurity.conf
+set -x
 sed -i 's/SecRuleEngine DetectionOnly/SecRuleEngine On/' ${PREFIX}/nginx/modsec/modsecurity.conf
 echo "Configuring nginx"
 mkdir -p ${PREFIX}/letsencrypt
 mkdir -p ${PREFIX}/nginx/{conf,log,run}
-mkdir -p ${PREFIX}/nginx/conf/{sites-enables,sites-available,custom}
+mkdir -p ${PREFIX}/nginx/conf/{custom}
+mkdir -p ${PREFIX}/nginx/{sites-enables,sites-available}
 cp ${APPDIR}/nginx.conf.tpl ${PREFIX}/nginx/nginx.conf
 cp ${APPDIR}/mime.types.tpl ${PREFIX}/nginx/conf/mime.types
 cp ${APPDIR}/certbot.conf.tpl ${PREFIX}/nginx/conf/certbot.conf
