@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 
+
 # Instalando requerimientos
 apt-get install -y build-essential \
 	zlib1g-dev \
@@ -32,6 +33,8 @@ TMPFSPATH="/opt/cache"
 # Read configuration variable file if it is present and override defaults
 #[ -r ./CONFIG ] && . ./CONFIG
 
+logfile=${APPDIR}/$$.log
+exec > $logfile 2>&1
 
 mkdir -p ${SRC}
 #echo "Cleaning $SRC_DIR"
