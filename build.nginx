@@ -130,6 +130,8 @@ echo "Downloading external modules"
 
 ## Download the clone of ngx_http_enhanced_memcached_module
 #[ -d ${SRC}/memcached_module ] && rm -rf ${SRC}/memcached_module
+_check_clean "ngx_cache_purge"
+git clone --quiet https://github.com/FRiCKLE/ngx_cache_purge.git ${SRC}/ngx_cache_purge
 _check_clean "memcached_module"
 git clone --quiet git://github.com/bpaquet/ngx_http_enhanced_memcached_module.git ${SRC}/memcached_module
 _check_clean "naxsi"
@@ -179,8 +181,10 @@ sed -i "s/Server\: nginx/Server\: Synaptic/g" src/http/ngx_http_header_filter_mo
 	--with-pcre=${SRC}/pcre-$PCRE_VERSION \
 	--with-zlib=${SRC}/zlib-${ZLIB_VERSION} \
 	--with-stream \
+	--conf-path=${PREFIX}/nginx/nginx.conf \
 	--modules-path=${PREFIX}/nginx/modules \
 	--with-compat \
+	--add-module=${SRC}/ngx_cache_purge \
 	--add-dynamic-module=${SRC}/memcached_module \
 	--add-dynamic-module=${SRC}/modsecurity-nginx \
 	--add-dynamic-module=${SRC}/naxsi/naxsi_src \
@@ -195,7 +199,7 @@ echo "Configuring nginx"
 mkdir -p ${PREFIX}/letsencrypt
 mkdir -p ${PREFIX}/nginx/{conf,log,run}
 mkdir -p ${PREFIX}/nginx/conf/{custom}
-mkdir -p ${PREFIX}/nginx/{sites-enables,sites-available}
+mkdir -p ${PREFIX}/nginx/{sites-enabled,sites-available}
 cp ${APPDIR}/nginx.conf.tpl ${PREFIX}/nginx/nginx.conf
 cp ${APPDIR}/mime.types.tpl ${PREFIX}/nginx/conf/mime.types
 cp ${APPDIR}/certbot.conf.tpl ${PREFIX}/nginx/conf/certbot.conf
@@ -205,12 +209,15 @@ cp ${APPDIR}/fastcgi_cache.conf.tpl ${PREFIX}/nginx/conf/fastcgi_cache.conf
 cp ${APPDIR}/site.conf.tpl ${PREFIX}/nginx/sites-available/site.conf
 cp ${APPDIR}/site-cache.conf.tpl ${PREFIX}/nginx/conf/site-cache.conf
 cp ${APPDIR}/site-locations.conf.tpl ${PREFIX}/nginx/conf/site-locations.conf
-# CAche dir for FastCGI
+[ ! -f ${PREFIX}/nginx/conf/modules.conf ] && touch ${PREFIX}/nginx/conf/modules.conf
+cp ${APPDIR}/nginx.init /etc/init/nginx.conf
+
+# Cache dir for FastCGI
 [ -d /dev/shm ] && TMPFSPATH="\/dev\/shm"
 [ ! -d ${TMPFSPATH} ] && _create_tmpfs
 sed -i "s/TMPFSPATH/${TMPFSPATH}/g" ${PREFIX}/nginx/conf/fastcgi_cache.conf
 
-
+service nginx status
 exit
 echo "Generando archivos de configuración"
 mkdir -p ${RUN_DIR}

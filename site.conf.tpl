@@ -4,7 +4,7 @@ server {
 	access_log   /opt/nginx/access.log;
 	error_log    /opt/nginx/error.log;
 
-	root /opt/nginx/www;
+	root /opt/nginx/html;
 	index index.php;
 
 	# Preparacion de cache para el sitio

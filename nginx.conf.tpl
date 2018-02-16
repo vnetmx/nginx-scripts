@@ -41,7 +41,8 @@ http {
 
 	server_tokens off;
 
+	include conf/modules.conf;
 	include conf/fastcgi_cache.conf;	
 	include conf/custom/*.conf;
-	include conf/sites-enabled/*.site;
+	include sites-enabled/*.site;
 }
