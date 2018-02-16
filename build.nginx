@@ -1,9 +1,10 @@
 #!/bin/bash
-set -e
+
+#set -e
 
 
 # Instalando requerimientos
-apt-get install -y build-essential \
+dapt-get install -y build-essential \
 	zlib1g-dev \
 	libpcre3 \
 	libpcre3-dev \
@@ -33,7 +34,7 @@ TMPFSPATH="/opt/cache"
 # Read configuration variable file if it is present and override defaults
 #[ -r ./CONFIG ] && . ./CONFIG
 
-logfile=${APPDIR}/$$.log
+logfile=${APPDIR}/build.log
 #exec > $logfile 2>&1
 exec > $logfile 
 
@@ -92,7 +93,9 @@ function _create_tmpfs() {
 
 PAGESPEED_VERSION=$(_get_pack apache incubator-pagespeed-ngx latest- pagespeed)
 ZLIB_VERSION=$(_get_pack madler zlib)
-OPENSSL_VERSION=$(_get_pack openssl openssl OpenSSL_)
+OPENSSL_VERSION=$(_get_pack openssl openssl OpenSSL_1_0)
+OPENSSL_VERSION="1_0$OPENSSL_VERSION"
+
 ## Download latest zlib Library
 #ZLIB_VERSION=`wget -qO- --no-check-certificate https://github.com/madler/zlib/releases | sed -n 's|.*/archive/v\(.*\).tar.gz.*|\1|p' | awk '{ print $1; exit }'`
 #if [ ! -f ${SRC}/zlib-${ZLIB_VERSION}.tar.gz ];
