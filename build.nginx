@@ -94,6 +94,7 @@ function _create_tmpfs() {
 PAGESPEED_VERSION=$(_get_pack apache incubator-pagespeed-ngx latest- pagespeed)
 ZLIB_VERSION=$(_get_pack madler zlib)
 OPENSSL_VERSION=$(_get_pack openssl openssl OpenSSL_1_0)
+cp ${SRC}/openssl-${OPENSSL_VERSION}.tar.gz ${SRC}/openssl-1_0${OPENSSL_VERSION}.tar.gz
 OPENSSL_VERSION="1_0$OPENSSL_VERSION"
 
 ## Download latest zlib Library
