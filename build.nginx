@@ -34,7 +34,8 @@ TMPFSPATH="/opt/cache"
 #[ -r ./CONFIG ] && . ./CONFIG
 
 logfile=${APPDIR}/$$.log
-exec > $logfile 2>&1
+#exec > $logfile 2>&1
+exec > $logfile 
 
 mkdir -p ${SRC}
 #echo "Cleaning $SRC_DIR"
@@ -167,9 +168,6 @@ sed -i "s/Server\: nginx/Server\: Synaptic/g" src/http/ngx_http_header_filter_mo
 	--without-mail_pop3_module \
 	--without-mail_imap_module \
 	--without-mail_smtp_module \
-	#--without-http_uwsgi_module \
-	#--without-http_scgi_module \
-	#--with-http_sub_module \
 	--with-pcre=${SRC}/pcre-$PCRE_VERSION \
 	--with-zlib=${SRC}/zlib-${ZLIB_VERSION} \
 	--with-stream \
